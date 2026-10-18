@@ -1,205 +1,117 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useMemo, useState } from 'react';
+import { PlusCircle, ShoppingCart, Wallet, Clock3, ReceiptText } from 'lucide-react';
+import { PageHeader, StatCard, Card, Badge, SearchInput, FilterSelect, TableWrap, EmptyState, Modal, PrimaryButton, GhostButton } from '../components/ui';
+import { purchaseBills } from '../data/mockData';
+import { inrPrecise, fmtDate } from '../utils/format';
 
-const PurchaseBillsPage = () => {
-  const navigate = useNavigate();
-  const [billType, setBillType] = useState('all'); // 'all', 'gst', 'non-gst'
-  const [searchTerm, setSearchTerm] = useState('');
+export default function PurchaseBillsPage() {
+  const [bills] = useState(purchaseBills);
+  const [query, setQuery] = useState('');
+  const [type, setType] = useState('All Types');
+  const [status, setStatus] = useState('All Statuses');
+  const [modalOpen, setModalOpen] = useState(false);
 
-  // Sample purchase bills data
-  const [purchaseBills, setPurchaseBills] = useState([
-    { 
-      id: 1, 
-      billNumber: 'PB001', 
-      supplier: 'ABC Chemicals', 
-      date: '2023-10-15', 
-      totalAmount: 45000, 
-      gst: true,
-      gstAmount: 8100,
-      status: 'Paid'
-    },
-    { 
-      id: 2, 
-      billNumber: 'PB002', 
-      supplier: 'XYZ Suppliers', 
-      date: '2023-10-18', 
-      totalAmount: 32000, 
-      gst: true,
-      gstAmount: 5760,
-      status: 'Pending'
-    },
-    { 
-      id: 3, 
-      billNumber: 'PB003', 
-      supplier: 'Local Vendor', 
-      date: '2023-10-20', 
-      totalAmount: 18000, 
-      gst: false,
-      gstAmount: 0,
-      status: 'Paid'
-    },
-    { 
-      id: 4, 
-      billNumber: 'PB004', 
-      supplier: 'Global Distributors', 
-      date: '2023-10-22', 
-      totalAmount: 67000, 
-      gst: true,
-      gstAmount: 12060,
-      status: 'Paid'
-    },
-    { 
-      id: 5, 
-      billNumber: 'PB005', 
-      supplier: 'Regional Suppliers', 
-      date: '2023-10-25', 
-      totalAmount: 25000, 
-      gst: false,
-      gstAmount: 0,
-      status: 'Pending'
-    },
-  ]);
+  const filtered = useMemo(() => bills.filter((b) => {
+    const q = query.toLowerCase();
+    return (!q || b.id.toLowerCase().includes(q) || b.supplier.toLowerCase().includes(q))
+      && (type === 'All Types' || b.type === type)
+      && (status === 'All Statuses' || b.status === status);
+  }), [bills, query, type, status]);
 
-  const filteredBills = purchaseBills.filter(bill => {
-    const matchesType = billType === 'all' || 
-                       (billType === 'gst' && bill.gst) || 
-                       (billType === 'non-gst' && !bill.gst);
-    const matchesSearch = bill.billNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         bill.supplier.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesType && matchesSearch;
-  });
-
-  const handleAddBill = () => {
-    // Placeholder for adding new purchase bill
-    alert('Add new purchase bill functionality would go here');
-  };
+  const total = bills.reduce((s, b) => s + b.total, 0);
+  const unpaid = bills.filter((b) => b.status !== 'Paid').reduce((s, b) => s + b.total, 0);
+  const gstCount = bills.filter((b) => b.type === 'GST').length;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="text-gray-500 hover:text-gray-700 mr-4"
-              >
-                ← Back to Dashboard
-              </button>
-              <h1 className="text-xl font-bold text-gray-900">Purchase Bills</h1>
-            </div>
-          </div>
+    <>
+      <PageHeader
+        title="Purchase Bills"
+        subtitle="Inbound bills from suppliers — GST and Non-GST"
+        actions={<PrimaryButton onClick={() => setModalOpen(true)}><PlusCircle size={16} /> New Purchase Bill</PrimaryButton>}
+      />
+
+      <div className="stats-grid">
+        <StatCard icon={ShoppingCart} tone="blue" label="Total Bills" value={bills.length} />
+        <StatCard icon={Wallet} tone="purple" label="Purchase Value" value={inrPrecise(total)} />
+        <StatCard icon={Clock3} tone="amber" label="Payable Outstanding" value={inrPrecise(unpaid)} />
+        <StatCard icon={ReceiptText} tone="green" label="GST Bills" value={`${gstCount} / ${bills.length}`} hint="Rest are Non-GST" />
+      </div>
+
+      <Card>
+        <div className="toolbar">
+          <SearchInput value={query} onChange={setQuery} placeholder="Search bill no. or supplier…" />
+          <FilterSelect value={type} onChange={setType} options={['All Types', 'GST', 'Non-GST']} label="Bill Type" />
+          <FilterSelect value={status} onChange={setStatus} options={['All Statuses', 'Paid', 'Partial', 'Unpaid']} label="Payment" />
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main>
-        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <div className="px-4 py-6 sm:px-0">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-semibold text-gray-800">Purchase Bills</h2>
-              <button
-                onClick={handleAddBill}
-                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Add Bill
-              </button>
-            </div>
-
-            {/* Filters */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <input
-                type="text"
-                placeholder="Search bills..."
-                className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              
-              <select
-                className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                value={billType}
-                onChange={(e) => setBillType(e.target.value)}
-              >
-                <option value="all">All Bills</option>
-                <option value="gst">GST Bills</option>
-                <option value="non-gst">Non-GST Bills</option>
-              </select>
-            </div>
-
-            {/* Bills Table */}
-            <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Bill Number
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Supplier
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Total Amount (₹)
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      GST Amount (₹)
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
+        <TableWrap>
+          {filtered.length === 0 ? (
+            <EmptyState message="No purchase bills match your filters." />
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Bill No.</th>
+                  <th>Supplier</th>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>GSTIN</th>
+                  <th className="num">Taxable</th>
+                  <th className="num">CGST</th>
+                  <th className="num">SGST</th>
+                  <th className="num">Total</th>
+                  <th>Payment</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((b) => (
+                  <tr key={b.id}>
+                    <td className="cell-strong">{b.id}</td>
+                    <td>{b.supplier}</td>
+                    <td className="cell-muted">{fmtDate(b.date)}</td>
+                    <td><Badge tone={b.type === 'GST' ? 'blue' : 'gray'}>{b.type}</Badge></td>
+                    <td className="cell-muted">{b.gstin}</td>
+                    <td className="num">{inrPrecise(b.taxableValue)}</td>
+                    <td className="num">{b.cgst ? inrPrecise(b.cgst) : '—'}</td>
+                    <td className="num">{b.sgst ? inrPrecise(b.sgst) : '—'}</td>
+                    <td className="num cell-strong">{inrPrecise(b.total)}</td>
+                    <td><Badge>{b.status}</Badge></td>
                   </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredBills.map((bill) => (
-                    <tr key={bill.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {bill.billNumber}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {bill.supplier}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(bill.date).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          bill.gst ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
-                        }`}>
-                          {bill.gst ? 'GST' : 'Non-GST'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        ₹{bill.totalAmount.toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {bill.gst ? `₹${bill.gstAmount.toLocaleString()}` : '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          bill.status === 'Paid' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {bill.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-};
+                ))}
+              </tbody>
+            </table>
+          )}
+        </TableWrap>
+      </Card>
 
-export default PurchaseBillsPage;
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="New Purchase Bill"
+        footer={<>
+          <GhostButton onClick={() => setModalOpen(false)}>Cancel</GhostButton>
+          <PrimaryButton onClick={() => setModalOpen(false)}>Save Bill</PrimaryButton>
+        </>}
+      >
+        <form className="form-grid two" onSubmit={(e) => { e.preventDefault(); setModalOpen(false); }}>
+          <div className="form-field"><label>Bill Number</label><input placeholder="PB-2026-___" required /></div>
+          <div className="form-field"><label>Bill Date</label><input type="date" required /></div>
+          <div className="form-field"><label>Supplier Name</label><input placeholder="e.g. ChemSource Pvt Ltd" required /></div>
+          <div className="form-field">
+            <label>Bill Type</label>
+            <select defaultValue="GST"><option>GST</option><option>Non-GST</option></select>
+          </div>
+          <div className="form-field"><label>GSTIN (if applicable)</label><input placeholder="24ABCDE1234F1Z5" /><span className="form-hint">Leave blank for Non-GST bills</span></div>
+          <div className="form-field"><label>Taxable Value (₹)</label><input type="number" min="0" step="0.01" placeholder="0.00" /></div>
+          <div className="form-field"><label>CGST (₹)</label><input type="number" min="0" step="0.01" placeholder="0.00" /></div>
+          <div className="form-field"><label>SGST (₹)</label><input type="number" min="0" step="0.01" placeholder="0.00" /></div>
+          <div className="form-field">
+            <label>Payment Status</label>
+            <select defaultValue="Unpaid"><option>Paid</option><option>Partial</option><option>Unpaid</option></select>
+          </div>
+          <div className="form-field"><label>Notes</label><textarea rows="2" placeholder="Optional remarks…" /></div>
+        </form>
+      </Modal>
+    </>
+  );
+}
